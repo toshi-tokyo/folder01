@@ -96,16 +96,15 @@ PADでは、同じ処理を何度も書くのを防ぐために**「サブフロ
 まずは、フォルダーの場所を設定し、ファイルの一覧を取得する部分を作ります。
 
 #### 1-1. デスクトップパスの取得
-アクション一覧の「フォルダー」グループから**「特殊フォルダーを取得」**をドラッグ＆ドロップします。
+アクション一覧の「フォルダー」グループから**「特殊なフォルダーを取得」**をドラッグ＆ドロップします。
 * **特殊フォルダーの名前**: `デスクトップ`
 * **生成された変数**: `%DesktopPath%` に変更（デフォルトは `%SpecialFolderPath%` になっているので、名前をダブルクリックして書き換えます）
 
 #### 1-2. ダウンロードフォルダパスの取得
-ダウンロードフォルダは環境によってユーザー名が変わるため、Windowsの環境変数を利用してユーザーのプロファイルパスを取得します。
-
-アクション一覧の「システム」グループから**「環境変数の取得」**を配置します。
-* **環境変数名**: `USERPROFILE`
-* **生成された変数**: `%UserProfilePath%`（※名前をダブルクリックして書き換えます。デフォルトは `%EnvironmentVariableValue%` です）
+ダウンロードフォルダは環境によってユーザー名が変わるため、システムの変数を利用して取得します。
+アクション一覧の「フォルダー」グループから**「特殊なフォルダーを取得」**を再度配置します。
+* **特殊なフォルダーの名前**: `ユーザー プロファイル`
+* **生成された変数**: `%UserProfilePath%`
 
 次に、アクション一覧の「変数」グループから**「変数の設定」**を配置します。
 * **宛先**: `%DownloadPath%`
@@ -167,7 +166,12 @@ PADでは、同じ処理を何度も書くのを防ぐために**「サブフロ
 * **演算子**: `で始まる`
 * **2番目のオペランド**: `%ArchivePath%`
 
-これら2つの条件のいずれかに当てはまる場合は処理をスキップさせます。
+さらにその下に**「Else If」**を追加します（※フォルダ自体がアーカイブフォルダそのものである場合や、禁止ファイルフォルダそのものである場合を念のため防ぎます）。
+* **最初のオペランド**: `%CurrentFile.FilePath%`
+* **演算子**: `と等しい`
+* **2番目のオペランド**: `%ArchivePath%`
+
+これら3つの条件のいずれかに当てはまる場合は処理をスキップさせます。
 「If」〜「End」のブロック内に、アクションの「フローコントロール」グループから**「サブフローの終了」**を配置します。これで条件に合致したファイルは何も処理されずに次のファイルへ進みます。
 
 #### 2-2. ショートカット（.lnk）ファイルの処理
@@ -271,7 +275,7 @@ Power Automate Desktopには、**「アクションのテキスト表現をコ�
 
 ```text
 Folder.GetSpecialFolder SpecialFolder: Folder.SpecialFolder.DesktopDirectory UseMusicDirectory: False Value=> DesktopPath
-System.GetEnvironmentVariable Name: $'''USERPROFILE''' Value=> UserProfilePath
+Folder.GetSpecialFolder SpecialFolder: Folder.SpecialFolder.UserProfile UseMusicDirectory: False Value=> UserProfilePath
 Variables.SetVariable Value: $'''%UserProfilePath%\\Downloads''' Variable=> DownloadPath
 Variables.SetVariable Value: $'''%DesktopPath%\\アーカイブ''' Variable=> ArchivePath
 Variables.SetVariable Value: $'''%DesktopPath%\\禁止ファイル''' Variable=> ExcludePath
