@@ -96,19 +96,24 @@ PADでは、同じ処理を何度も書くのを防ぐために**「サブフロ
 まずは、フォルダーの場所を設定し、ファイルの一覧を取得する部分を作ります。
 
 #### 1-1. デスクトップパスの取得
-アクション一覧の「フォルダー」グループから**「特殊なフォルダーを取得」**をドラッグ＆ドロップします。
+アクション一覧の「フォルダー」グループから**「特別なフォルダーを取得」**をドラッグ＆ドロップします。
 * **特殊フォルダーの名前**: `デスクトップ`
 * **生成された変数**: `%DesktopPath%` に変更（デフォルトは `%SpecialFolderPath%` になっているので、名前をダブルクリックして書き換えます）
 
 #### 1-2. ダウンロードフォルダパスの取得
-ダウンロードフォルダは環境によってユーザー名が変わるため、システムの変数を利用して取得します。
-アクション一覧の「フォルダー」グループから**「特殊なフォルダーを取得」**を再度配置します。
-* **特殊なフォルダーの名前**: `ユーザー プロファイル`
-* **生成された変数**: `%UserProfilePath%`
+ダウンロードフォルダは環境によってユーザー名が変わるため、システムの「ドキュメント」フォルダの場所から親フォルダーを特定して取得します。（これでプルダウンの選択肢だけで安全に設定できます）
 
-次に、アクション一覧の「変数」グループから**「変数の設定」**を配置します。
-* **宛先**: `%DownloadPath%`
-* **値**: `%UserProfilePath%\Downloads`
+1. アクション一覧の「フォルダー」グループから**「特別なフォルダーを取得」**を再度配置します。
+   * **特殊フォルダーの名前**: `ドキュメント`（※プルダウンから選択します）
+   * **生成された変数**: `%DocumentsPath%`（※デフォルトの `%SpecialFolderPath%` からダブルクリックで書き換えます）
+
+2. アクション一覧の「ファイル」グループから**「パスを分割」**アクションを配置します。
+   * **パス**: `%DocumentsPath%`
+   * **生成された変数**: `%ParentDirectory%`（※デフォルトで生成される `%Directory%` からダブルクリックで `%ParentDirectory%` に書き換えます）
+
+3. アクション一覧の「変数」グループから**「変数の設定」**を配置します。
+   * **宛先**: `%DownloadPath%`
+   * **値**: `%ParentDirectory%\Downloads`
 
 #### 1-3. アーカイブと禁止ファイルのパスを設定
 同じく「変数の設定」を使って、整理先と除外対象のパスを定義します。
@@ -166,12 +171,7 @@ PADでは、同じ処理を何度も書くのを防ぐために**「サブフロ
 * **演算子**: `で始まる`
 * **2番目のオペランド**: `%ArchivePath%`
 
-さらにその下に**「Else If」**を追加します（※フォルダ自体がアーカイブフォルダそのものである場合や、禁止ファイルフォルダそのものである場合を念のため防ぎます）。
-* **最初のオペランド**: `%CurrentFile.FilePath%`
-* **演算子**: `と等しい`
-* **2番目のオペランド**: `%ArchivePath%`
-
-これら3つの条件のいずれかに当てはまる場合は処理をスキップさせます。
+これら2つの条件のいずれかに当てはまる場合は処理をスキップさせます。
 「If」〜「End」のブロック内に、アクションの「フローコントロール」グループから**「サブフローの終了」**を配置します。これで条件に合致したファイルは何も処理されずに次のファイルへ進みます。
 
 #### 2-2. ショートカット（.lnk）ファイルの処理
@@ -275,8 +275,9 @@ Power Automate Desktopには、**「アクションのテキスト表現をコ�
 
 ```text
 Folder.GetSpecialFolder SpecialFolder: Folder.SpecialFolder.DesktopDirectory UseMusicDirectory: False Value=> DesktopPath
-Folder.GetSpecialFolder SpecialFolder: Folder.SpecialFolder.UserProfile UseMusicDirectory: False Value=> UserProfilePath
-Variables.SetVariable Value: $'''%UserProfilePath%\\Downloads''' Variable=> DownloadPath
+Folder.GetSpecialFolder SpecialFolder: Folder.SpecialFolder.Documents UseMusicDirectory: False Value=> DocumentsPath
+File.SplitPath Path: DocumentsPath Directory=> ParentDirectory
+Variables.SetVariable Value: $'''%ParentDirectory%\\Downloads''' Variable=> DownloadPath
 Variables.SetVariable Value: $'''%DesktopPath%\\アーカイブ''' Variable=> ArchivePath
 Variables.SetVariable Value: $'''%DesktopPath%\\禁止ファイル''' Variable=> ExcludePath
 Folder.GetFiles Folder: DesktopPath FileFilter: $'''*''' IncludeSubfolders: True FailOnAccessDenied: False SortBy1: Folder.SortBy.NoSort SortDescending1: False SortBy2: Folder.SortBy.NoSort SortDescending2: False SortBy3: Folder.SortBy.NoSort SortDescending3: False SortBy4: Folder.SortBy.NoSort SortDescending4: False SortBy5: Folder.SortBy.NoSort SortDescending5: False Files=> DesktopFiles
