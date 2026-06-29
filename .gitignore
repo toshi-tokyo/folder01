@@ -220,3 +220,8 @@ __marimo__/
 *.csv
 *.json
 *.txt
+*.md
+*.xlsx
+*.xlsm
+.md
+*.ps1
