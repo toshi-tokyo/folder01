@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>療育マップ 千代田区</title>
+<meta name="description" content="千代田区の児童発達支援・放課後等デイサービスを地図で探せるマップ。タップで支援内容の概要、さらにタップで各施設の公式サイトへ。">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fbf8f3; --surface:#ffffff; --ink:#2b2a28; --muted:#6f6a62; --line:#e7e1d7;
+  --jihatsu:#e8833a; --houday:#2f7fc1; --both:#8a5cc2; --houmon:#3a9a6a;
+  --accent:#2b2a28; --shadow:0 10px 30px rgba(40,30,10,.18);
+  --radius:18px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1b1a18; --surface:#262522; --ink:#f1ede6; --muted:#aaa397; --line:#3a3833;
+    --accent:#f1ede6; --shadow:0 10px 30px rgba(0,0,0,.5);
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:"Noto Sans JP",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+.app{display:flex;flex-direction:column;height:100dvh}
+header{padding:12px 16px 10px;background:var(--bg);border-bottom:1px solid var(--line);z-index:1000}
+.title-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+h1{font-family:"Zen Maru Gothic",sans-serif;font-size:20px;margin:0;letter-spacing:.02em}
+h1 small{font-size:13px;color:var(--muted);margin-left:6px;font-weight:500}
+.count{font-size:12px;color:var(--muted);white-space:nowrap}
+.chips{display:flex;gap:6px;margin-top:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit}
+.chip .dot{width:10px;height:10px;border-radius:50%}
+.chip[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--bg)}
+main{position:relative;flex:1;min-height:0}
+#map{position:absolute;inset:0;background:#e9e6df}
+.list-btn{position:absolute;right:16px;bottom:calc(20px + env(safe-area-inset-bottom));z-index:970;background:var(--ink);color:var(--bg);border:0;border-radius:999px;padding:12px 18px;font-size:14px;font-weight:700;box-shadow:var(--shadow);cursor:pointer;font-family:inherit}
+
+/* markers */
+.pin{width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center}
+.pin span{transform:rotate(45deg);color:#fff;font-size:12px;font-weight:700;font-family:"Zen Maru Gothic",sans-serif}
+.pin.active{outline:3px solid var(--ink);outline-offset:1px}
+
+/* bottom sheet */
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:950;background:var(--surface);border-radius:var(--radius) var(--radius) 0 0;box-shadow:var(--shadow);transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);max-height:78%;display:flex;flex-direction:column}
+.sheet.open{transform:none}
+.sheet-handle{width:40px;height:5px;border-radius:3px;background:var(--line);margin:8px auto 0;flex:0 0 auto}
+.sheet-body{padding:10px 16px calc(16px + env(safe-area-inset-bottom));overflow-y:auto}
+.sheet-close{position:absolute;top:10px;right:12px;border:0;background:transparent;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;padding:6px}
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.badge{font-size:11px;font-weight:700;color:#fff;border-radius:6px;padding:3px 8px}
+.card-name{font-family:"Zen Maru Gothic",sans-serif;font-size:19px;font-weight:700;margin:2px 32px 6px 0;line-height:1.35}
+.meta{font-size:13px;color:var(--muted);margin:0 0 8px}
+.summary{font-size:14.5px;line-height:1.75;margin:8px 0 10px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.tag{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--muted)}
+.info{font-size:13px;line-height:1.7;border-top:1px solid var(--line);padding-top:10px;margin-bottom:14px}
+.info a{color:inherit}
+.actions{display:grid;grid-template-columns:1fr auto;gap:8px}
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;border-radius:12px;padding:13px 14px;font-size:15px;font-weight:700;font-family:inherit}
+.btn-primary{background:var(--ink);color:var(--bg)}
+.btn-sub{border:1.5px solid var(--line);color:var(--ink);font-size:13px}
+
+/* list */
+.list{position:absolute;inset:0;z-index:960;background:var(--bg);overflow-y:auto;padding:12px 16px 90px;display:none}
+.list.open{display:block}
+.item{display:block;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;cursor:pointer;color:inherit;font-family:inherit}
+.item .card-name{font-size:16px;margin:4px 0 4px}
+.item p{margin:0;font-size:13px;color:var(--muted);line-height:1.6}
+.source{font-size:11.5px;color:var(--muted);line-height:1.7;margin-top:16px}
+.source a{color:inherit}
+.leaflet-control-attribution{font-size:10px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="title-row">
+      <h1>療育マップ<small id="area"></small></h1>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="サービスで絞り込み"></div>
+  </header>
+  <main>
+    <div id="map" aria-label="施設の地図"></div>
+    <button class="list-btn" id="listBtn">一覧で見る</button>
+    <section class="list" id="list" aria-label="施設一覧"></section>
+    <section class="sheet" id="sheet" aria-live="polite">
+      <div class="sheet-handle"></div>
+      <button class="sheet-close" id="sheetClose" aria-label="閉じる">×</button>
+      <div class="sheet-body" id="sheetBody"></div>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="facilities.js"></script>
+<script>
+(function(){
+  const SERVICES = {
+    jihatsu:{label:"児童発達支援", short:"児", color:"var(--jihatsu)", hint:"主に未就学児"},
+    houday:{label:"放課後等デイ", short:"放", color:"var(--houday)", hint:"小〜高校生"},
+    houmon:{label:"訪問型", short:"訪", color:"var(--houmon)", hint:"自宅へ訪問"}
+  };
+  const data = (window.FACILITIES||[]).map((f,i)=>({...f,id:i}));
+  const meta = window.FACILITIES_META||{};
+  const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const safeUrl = u => /^https?:\/\//i.test(u||"") ? u : "#";
+
+  document.getElementById("area").textContent = meta.area||"";
+
+  // 同じ座標の施設を少しずらす
+  const seen = {};
+  data.forEach(f=>{
+    const k=f.lat.toFixed(5)+","+f.lng.toFixed(5);
+    const n=seen[k]=(seen[k]||0)+1;
+    if(n>1){f.lat+= (n-1)*0.00018; f.lng+=(n-1)*0.00022;}
+  });
+
+  const colorOf = f => f.services.length>1 ? "var(--both)" : SERVICES[f.services[0]].color;
+  const labelOf = f => f.services.map(s=>SERVICES[s].short).join("");
+
+  const map = L.map("map",{zoomControl:false,tap:true}).setView([35.689,139.758],14);
+  L.control.zoom({position:"topright"}).addTo(map);
+  L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png",{
+    maxZoom:18, attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a>'
+  }).addTo(map);
+
+  const markers = {};
+  let active = null;
+  data.forEach(f=>{
+    const icon = L.divIcon({className:"",iconSize:[30,30],iconAnchor:[15,30],
+      html:`<div class="pin" style="background:${colorOf(f)}"><span>${labelOf(f)}</span></div>`});
+    const m = L.marker([f.lat,f.lng],{icon,title:f.name,keyboard:true}).addTo(map);
+    m.on("click",()=>openSheet(f));
+    markers[f.id]=m;
+  });
+
+  // filters
+  const filters = new Set(Object.keys(SERVICES));
+  const chips = document.getElementById("chips");
+  chips.innerHTML = `<button class="chip" data-k="all" aria-pressed="true">すべて</button>` +
+    Object.entries(SERVICES).map(([k,s])=>`<button class="chip" data-k="${k}" aria-pressed="false"><span class="dot" style="background:${s.color}"></span>${s.label}</button>`).join("") +
+    `<span class="chip" style="cursor:default;border-style:dashed"><span class="dot" style="background:var(--both)"></span>複数対応</span>`;
+  let mode = "all";
+  chips.addEventListener("click",e=>{
+    const b=e.target.closest("button.chip"); if(!b) return;
+    mode=b.dataset.k;
+    chips.querySelectorAll("button.chip").forEach(c=>c.setAttribute("aria-pressed",String(c===b)));
+    applyFilter();
+  });
+  const visible = f => mode==="all" || f.services.includes(mode);
+  function applyFilter(){
+    let n=0;
+    data.forEach(f=>{ const v=visible(f); if(v){n++; markers[f.id].addTo(map);} else markers[f.id].remove(); });
+    document.getElementById("count").textContent = `${n}件`;
+    renderList();
+    if(active && !visible(active)) closeSheet();
+  }
+
+  // sheet
+  const sheet=document.getElementById("sheet"), body=document.getElementById("sheetBody");
+  function badges(f){return f.services.map(s=>`<span class="badge" style="background:${SERVICES[s].color}">${SERVICES[s].label}</span>`).join("");}
+  function openSheet(f){
+    if(active) markers[active.id].getElement()?.firstElementChild?.classList.remove("active");
+    active=f;
+    markers[f.id].getElement()?.firstElementChild?.classList.add("active");
+    const q=encodeURIComponent(f.name+" "+f.address.replace(/（.*?）/g,""));
+    body.innerHTML = `
+      <div class="badges">${badges(f)}</div>
+      <h2 class="card-name">${esc(f.name)}</h2>
+      ${f.age?`<p class="meta">対象：${esc(f.age)}</p>`:""}
+      <p class="summary">${esc(f.summary)}</p>
+      <div class="tags">${(f.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>
+      <div class="info">📍 ${esc(f.address)}<br>📞 <a href="tel:${esc(f.tel.replace(/-/g,""))}">${esc(f.tel)}</a></div>
+      <div class="actions">
+        <a class="btn btn-primary" href="${esc(safeUrl(f.url))}" target="_blank" rel="noopener">公式サイトを見る ↗</a>
+        <a class="btn btn-sub" href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank" rel="noopener">経路</a>
+      </div>`;
+    sheet.classList.add("open");
+    body.scrollTop=0;
+    map.panTo([f.lat,f.lng],{animate:true});
+    setTimeout(()=>{ // シートに隠れないよう少し上へ
+      const h=sheet.getBoundingClientRect().height; map.panBy([0,h/2.4],{animate:true});
+    },30);
+  }
+  function closeSheet(){
+    sheet.classList.remove("open");
+    if(active) markers[active.id].getElement()?.firstElementChild?.classList.remove("active");
+    active=null;
+  }
+  document.getElementById("sheetClose").onclick=closeSheet;
+  map.on("click",closeSheet);
+
+  // list
+  const list=document.getElementById("list"), listBtn=document.getElementById("listBtn");
+  function renderList(){
+    list.innerHTML = data.filter(visible).map(f=>`
+      <button class="item" data-id="${f.id}">
+        <div class="badges">${badges(f)}</div>
+        <div class="card-name">${esc(f.name)}</div>
+        <p>${esc(f.summary)}</p>
+      </button>`).join("") +
+      `<p class="source">掲載情報は <a href="${esc(meta.sourceUrl)}" target="_blank" rel="noopener">${esc(meta.sourceName)}</a> と各施設の公式サイトをもとに作成しています（最終確認 ${esc(meta.updated)}）。空き状況・対象年齢・内容は変わることがあります。利用前に必ず各施設へ直接ご確認ください。</p>`;
+  }
+  list.addEventListener("click",e=>{
+    const b=e.target.closest(".item"); if(!b) return;
+    toggleList(false);
+    const f=data[+b.dataset.id];
+    map.setView([f.lat,f.lng],16,{animate:false});
+    openSheet(f);
+  });
+  function toggleList(show){
+    list.classList.toggle("open",show);
+    listBtn.textContent = show ? "地図で見る" : "一覧で見る";
+    if(show){ closeSheet(); list.scrollTop=0; }
+  }
+  listBtn.onclick=()=>toggleList(!list.classList.contains("open"));
+
+  applyFilter();
+  const b=L.latLngBounds(data.map(f=>[f.lat,f.lng]));
+  map.fitBounds(b,{padding:[30,30]});
+})();
+</script>
+</body>
+</html>
